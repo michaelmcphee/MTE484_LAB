@@ -10,8 +10,8 @@ const int   CONTROL_INTERVAL_MS = 1;
 const float T_S = 0.001f;
 
 // ---- Gear angle: rad = M_THETA * reading + OFFSET_THETA (Lab 1c) ----
-const float M_THETA      = -0.000362004f;
-const float OFFSET_THETA =  1.49809278f;
+const float M_THETA      = -3.464482414633648e-04f;
+const float OFFSET_THETA =  1.489727438292469f;
 
 // ---- Gear angle: rad = M_THETA * reading + OFFSET_THETA (Lab 2e) ----
 const float M_Y      =  2.443047606934512e-05f;
@@ -19,8 +19,8 @@ const float OFFSET_Y = -0.016192042846546f;
 const float FILTER_ALPHA = 0.25f;
 
 // ---- New Stiction Values (Lab 2d) ----
-const float STICTION_CW  =  -0.05f;
-const float STICTION_CCW =  0.4f;
+const float STICTION_CW  = -0.05f;
+const float STICTION_CCW =  0.40f;
 
 // ---- Reference ----
 const float REF_LOW  = -0.7f;
