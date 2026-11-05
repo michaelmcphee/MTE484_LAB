@@ -1,8 +1,9 @@
 %% Motor Potentiometer Reading vs. Motor Angle
 
 % Define calibration data
-motor_angle = [0, pi/4, -pi/4];
-motor_pot = [4154, 1961, 6300];
+motor_angle = [0, pi/4];  % no longer having pi/4 and -pi/4 since
+motor_pot = [4300, 2033]; % most important to have accurate 0
+
 
 % Calculate slope and intercept
 motor_coefs = polyfit(motor_pot, motor_angle, 1);
