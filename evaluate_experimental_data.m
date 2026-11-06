@@ -1,9 +1,10 @@
 %% Plot Lab 2 controller data
-data = readmatrix("data/Lab2/partc_og.csv");
+data = readmatrix("data/Lab2/partd.csv");
 t_us      = data(:,1);
 theta_ref = data(:,2);
 theta     = data(:,3);
-V         = data(:,4);
+y         = data(:,4);
+V         = data(:,5);
 t = (t_us - t_us(1)) / 1e6;   % seconds, starting at 0
 band = 0.02 * 1.4;
 

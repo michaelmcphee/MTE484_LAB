@@ -39,7 +39,7 @@ for r = 1:nr
 
             k3_values(r, c) = (2 * delta_y) / (beam_angle * delta_t^2);
 
-            plot(y, '.', 'MarkerSize', 4, 'DisplayName', ...
+            plot(t, y, '.', 'MarkerSize', 4, 'DisplayName', ...
                 sprintf("%s (K3 = %.2f)", filename, k3_values(r, c)));
         end
         title("Gear angle ref = " + gear_ref(r, 3*(g-1)+1));
