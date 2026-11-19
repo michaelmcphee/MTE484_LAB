@@ -1,5 +1,5 @@
 %% Plot Lab 3 controller data
-data = readmatrix("data/Lab3/partb/serial_data_system.csv");   % change to your file
+data = readmatrix("data/serial_data_system.csv");   % change to your file
 
 % Columns: time (us), y_ref, y, theta_ref_unsat, theta_ref_sat, theta, V
 t_us          = data(:,1);

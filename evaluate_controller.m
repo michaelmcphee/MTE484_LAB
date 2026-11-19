@@ -1,5 +1,4 @@
 clear; clc;
-
 %% Plant parameters (from Lab 1 and Lab 2)
 k1  = -1.9731;
 tau =  0.02387;
@@ -9,21 +8,37 @@ k3  = -4.838;
 %% Inner loop controller C1(s) (from Lab 2 design)
 a1 = 1/tau;  b0 = k1/tau;
 sig = 14;  wd = 9.5;
-pdes = real(poly([-sig+1j*wd, -sig-1j*wd, -a1]));
+pdesi = real(poly([-sig+1j*wd, -sig-1j*wd, -a1]));
 f1i = 1;
-f0i = pdes(2) - a1;
-g1i = (pdes(3) - a1*f0i)/b0;
-g0i = pdes(4)/b0;
+f0i = pdesi(2) - a1;
+g1i = (pdesi(3) - a1*f0i)/b0;
+g0i = pdesi(4)/b0;
 
-%% Outer loop controller C1(s) (from Lab 3(a))
-f1o = 1;
-f0o = 2.5;
-g1o = -7;
-g0o = -2.45;
+%% Outer loop controller C2(s) (Lab 3(a), lead controller, for reference)
+% f3o = 0; f2o = 0; f1o = 1; f0o = 2.5;
+% g3o = 0; g2o = 0; g1o = -7; g0o = -2.45;
+
+%% Outer loop controller C2(s) (Lab 3(c), pole placement with integrator)
+% C2(s) = (g3o s^3 + g2o s^2 + g1o s + g0o) / (f3o s^3 + f2o s^2 + f1o s + f0o)
+%       = (g2o s^2 + g1o s + g0o) / ( s (s^2 + f2o s + f1o) )
+% Plant seen by the outer loop (theta = theta_ref assumed): K/s^2
+% Augmented with the integrator: K/s^3
+K = k2*k3;
+sigo = 0.4;  zetao = 0.95;
+wno  = sigo/zetao;
+wdo  = wno*sqrt(1 - zetao^2);
+pdeso = real(poly([-sigo+1j*wdo, -sigo-1j*wdo, -2.5, -5, -10]));
+f3o = 1;
+f2o = pdeso(2);
+f1o = pdeso(3);
+f0o = 0;
+g3o = 0;
+g2o = pdeso(4)/K;
+g1o = pdeso(5)/K;
+g0o = pdeso(6)/K;
 
 %% Run simulation
-out = sim('model_Lab3.slx');   % change to your model name
-
+out = sim('model_Lab3.slx');
 y_ref     = out.y_ref;
 theta_ref = out.theta_ref;
 theta     = out.theta;
@@ -47,7 +62,7 @@ yline(os_lo, 'r:', 'LineWidth', 1);
 xlabel('Time (s)');
 ylabel('Ball Position (m)');
 legend([h1 h2 h3 h4], 'y_{ref}', 'y', 'Steady-state band', 'Overshoot limit', 'Location', 'best');
-title('Lab 3(a): Ball Position with Lead Controller');
+title('Lab 3(c): Ball Position with Pole-Placement Controller');
 grid on;
 
 %% Figure 2: gear angle reference and gear angle

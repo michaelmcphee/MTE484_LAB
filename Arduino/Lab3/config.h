@@ -8,6 +8,7 @@ const int BALL_PIN   = A1;   // ball position sensor
 // ---- Timing ----
 const int   CONTROL_INTERVAL_MS = 1;
 const float T_S = 0.001f;
+const double T_D = 0.001;    // same period, double precision (outer controller)
 
 // ---- Gear angle: rad = M_THETA * reading + OFFSET_THETA (Lab 1c) ----
 const float M_THETA      = -3.464482414633648e-04f;
@@ -43,18 +44,30 @@ const float m0i = f0i * T_S - f1i;
 const float n1i = g1i;
 const float n0i = g0i * T_S - g1i;
 
-// ---- Outer controller C2(s) = (g1o s + g0o) / (f1o s + f0o) ----
-// C2LD(s) = -7 (s + 0.35) / (s + 2.5)
-const float f1o = 1.0f;
-const float f0o = 2.5f;
-const float g1o = -7.0f;
-const float g0o = -2.45f;
+// ---- Outer controller C2(s) (Lab 3(c), pole placement with integrator) ----
+// C2(s) = (g3o s^3 + g2o s^2 + g1o s + g0o) / (f3o s^3 + f2o s^2 + f1o s + f0o)
+// Paste full-precision values from MATLAB (format long) if you change the poles.
+// Poles: -0.4 +/- j0.1315, -2.5, -5, -10
+const double f3o = 1.0;
+const double f2o = 18.3;
+const double f1o = 101.67728531855956;
+const double f0o = 0.0;                    // integrator
+const double g3o = 0.0;
+const double g2o = -672.3676106670313;
+const double g1o = -392.0538259779795;
+const double g0o = -75.21416325716635;
 
-// Outer D2(z) = (n1o z + n0o) / (m1o z + m0o), forward Euler
-const float m1o = f1o;
-const float m0o = f0o * T_S - f1o;
-const float n1o = g1o;
-const float n0o = g0o * T_S - g1o;
+// Outer D2(z) = (n3o z^3 + n2o z^2 + n1o z + n0o) / (m3o z^3 + m2o z^2 + m1o z + m0o)
+// Forward Euler, s = (z-1)/T, both polynomials multiplied by T^3.
+const double m3o = f3o;
+const double m2o = -3.0*f3o + f2o*T_D;
+const double m1o =  3.0*f3o - 2.0*f2o*T_D + f1o*T_D*T_D;
+const double m0o = -f3o + f2o*T_D - f1o*T_D*T_D + f0o*T_D*T_D*T_D;
+
+const double n3o = g3o;
+const double n2o = -3.0*g3o + g2o*T_D;
+const double n1o =  3.0*g3o - 2.0*g2o*T_D + g1o*T_D*T_D;
+const double n0o = -g3o + g2o*T_D - g1o*T_D*T_D + g0o*T_D*T_D*T_D;
 
 // ---- Logging: 5 ticks = 5 ms between lines ----
 const int LOG_DECIMATION = 5;

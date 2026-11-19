@@ -58,20 +58,21 @@ static float readBallPosition() {
   return M_Y * filteredRaw + OFFSET_Y;
 }
 
-// One step of D2(z). Returns the saturated gear angle reference.
+// One step of D2(z), third order. Returns the saturated gear angle reference.
 // The unsaturated value is fed back in the recursion and logged.
 static float runOuterController(float y_ref, float y, float &theta_ref_unsat) {
-  static float e_prev = 0.0f;
-  static float u_prev = 0.0f;
+  static double e1 = 0.0, e2 = 0.0, e3 = 0.0;   // e[k-1], e[k-2], e[k-3]
+  static double u1 = 0.0, u2 = 0.0, u3 = 0.0;   // u[k-1], u[k-2], u[k-3]
 
-  float e = y_ref - y;
-  float u = (n1o * e + n0o * e_prev - m0o * u_prev) / m1o;
+  double e = (double)y_ref - (double)y;
+  double u = (n3o * e + n2o * e1 + n1o * e2 + n0o * e3
+              - m2o * u1 - m1o * u2 - m0o * u3) / m3o;
 
-  e_prev = e;
-  u_prev = u;
+  e3 = e2;  e2 = e1;  e1 = e;
+  u3 = u2;  u2 = u1;  u1 = u;
 
-  theta_ref_unsat = u;
-  return saturate(u, THETA_REF_LIMIT);
+  theta_ref_unsat = (float)u;
+  return saturate((float)u, THETA_REF_LIMIT);
 }
 
 // One step of D1(z). Returns the motor voltage.
