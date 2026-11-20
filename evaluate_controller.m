@@ -5,6 +5,9 @@ tau =  0.02387;
 k2  =  0.0609;
 k3  = -4.838;
 
+%% Sampling period (must match T_S in config.h)
+T = 0.001;   % s
+
 %% Inner loop controller C1(s) (from Lab 2 design)
 a1 = 1/tau;  b0 = k1/tau;
 sig = 14;  wd = 9.5;
@@ -14,9 +17,11 @@ f0i = pdesi(2) - a1;
 g1i = (pdesi(3) - a1*f0i)/b0;
 g0i = pdesi(4)/b0;
 
-%% Outer loop controller C2(s) (Lab 3(a), lead controller, for reference)
-% f3o = 0; f2o = 0; f1o = 1; f0o = 2.5;
-% g3o = 0; g2o = 0; g1o = -7; g0o = -2.45;
+% Inner D1(z) = (n1i z + n0i) / (m1i z + m0i), forward Euler (s = (z-1)/T)
+m1i = f1i;
+m0i = f0i*T - f1i;
+n1i = g1i;
+n0i = g0i*T - g1i;
 
 %% Outer loop controller C2(s) (Lab 3(c), pole placement with integrator)
 % C2(s) = (g3o s^3 + g2o s^2 + g1o s + g0o) / (f3o s^3 + f2o s^2 + f1o s + f0o)
@@ -37,6 +42,23 @@ g2o = pdeso(4)/K;
 g1o = pdeso(5)/K;
 g0o = pdeso(6)/K;
 
+% Outer D2(z), forward Euler (s = (z-1)/T), both polynomials multiplied by T^3
+m3o = f3o;
+m2o = -3*f3o + f2o*T;
+m1o =  3*f3o - 2*f2o*T + f1o*T^2;
+m0o = -f3o + f2o*T - f1o*T^2 + f0o*T^3;
+
+n3o = g3o;
+n2o = -3*g3o + g2o*T;
+n1o =  3*g3o - 2*g2o*T + g1o*T^2;
+n0o = -g3o + g2o*T - g1o*T^2 + g0o*T^3;
+
+% Print full-precision values for config.h
+format long
+disp('Inner D1(z):');  disp([n1i n0i m1i m0i]);
+disp('Outer D2(z):');  disp([n3o n2o n1o n0o; m3o m2o m1o m0o]);
+format short
+
 %% Run simulation
 out = sim('model_Lab3.slx');
 y_ref     = out.y_ref;
@@ -44,37 +66,26 @@ theta_ref = out.theta_ref;
 theta     = out.theta;
 y         = out.y;
 
-%% Assessment levels (from 3(e) and the demo section)
+%% Specs from 3(c)
 lo = 0.10;  hi = 0.25;  stepSize = hi - lo;
-ss_lo = [0.094 0.106];
-ss_hi = [0.240 0.260];
-os_hi = 0.320;
-os_lo = 0.032;
+band    = 0.02 * stepSize;           % 2% settling band = 0.003 m
+os_max  = 45;                        % % overshoot limit
+ts_max  = 7;                         % s settling limit
+os_hi   = hi + os_max/100*stepSize;  % 0.3175 m
+os_lo   = lo - os_max/100*stepSize;  % 0.0325 m
 
 %% Figure 1: reference and ball position
 figure;
 h1 = plot(y_ref, 'k--', 'LineWidth', 1.2); hold on;
 h2 = plot(y, 'b', 'LineWidth', 1.2);
-h3 = yline(ss_hi(1), 'c--'); yline(ss_hi(2), 'c--');
-yline(ss_lo(1), 'c--');      yline(ss_lo(2), 'c--');
+h3 = yline(hi + band, 'c--'); yline(hi - band, 'c--');
+yline(lo + band, 'c--');      yline(lo - band, 'c--');
 h4 = yline(os_hi, 'r:', 'LineWidth', 1);
 yline(os_lo, 'r:', 'LineWidth', 1);
 xlabel('Time (s)');
 ylabel('Ball Position (m)');
-legend([h1 h2 h3 h4], 'y_{ref}', 'y', 'Steady-state band', 'Overshoot limit', 'Location', 'best');
-title('Lab 3(c): Ball Position with Pole-Placement Controller');
-grid on;
-
-%% Figure 2: gear angle reference and gear angle
-figure;
-h1 = plot(theta_ref, 'k--', 'LineWidth', 1.2); hold on;
-h2 = plot(theta, 'b', 'LineWidth', 1.2);
-h3 = yline(0.7, 'r:', 'LineWidth', 1);
-yline(-0.7, 'r:', 'LineWidth', 1);
-xlabel('Time (s)');
-ylabel('Gear Angle (rad)');
-legend([h1 h2 h3], '\theta_{ref}', '\theta', '\pm0.7 rad limit', 'Location', 'best');
-title('Gear Angle Reference and Response');
+legend([h1 h2 h3 h4], 'y_{ref}', 'y', '\pm2% band', '45% overshoot limit', 'Location', 'best');
+title('Lab 3(c): Ball Position, Discrete Controllers');
 grid on;
 
 %% Metrics for each reference edge
@@ -83,31 +94,48 @@ yd = y.Data;
 r  = interp1(y_ref.Time, y_ref.Data, t, 'previous');
 edges = find(abs(diff(r)) > 0.5*stepSize);
 edges = edges(t(edges+1) < t(end) - 1);   % drop edges at the end of the sim
-band  = 0.02 * stepSize;                  % 3(c) band: 2% of the step
+nEdge = numel(edges);
 
-for i = 1:numel(edges)
+os_pct = nan(nEdge,1);  ts = nan(nEdge,1);  peak = nan(nEdge,1);
+sse    = nan(nEdge,1);  isUp = false(nEdge,1);
+
+for i = 1:nEdge
     i0 = edges(i) + 1;
-    if i < numel(edges), i1 = edges(i+1); else, i1 = numel(t); end
+    if i < nEdge, i1 = edges(i+1); else, i1 = numel(t); end
     seg_t = t(i0:i1);
     seg_y = yd(i0:i1);
     final = r(i0);
     t0 = t(i0);
+    isUp(i) = final > r(edges(i));
 
-    % 3(c) settling: 2% of the step
+    % 2% settling time
     idx = find(abs(seg_y - final) > band, 1, 'last');
-    if isempty(idx), ts = 0; elseif idx == numel(seg_t), ts = NaN; else, ts = seg_t(idx+1) - t0; end
+    if isempty(idx), ts(i) = 0;
+    elseif idx == numel(seg_t), ts(i) = NaN;   % never settled
+    else, ts(i) = seg_t(idx+1) - t0;
+    end
 
-    % 3(e) settling: 0.094-0.106 m at 0.10 m, 0.240-0.260 m at 0.25 m
-    if abs(final - hi) < 1e-6, bandE = 0.010; else, bandE = 0.006; end
-    idxE = find(abs(seg_y - final) > bandE, 1, 'last');
-    if isempty(idxE), tsE = 0; elseif idxE == numel(seg_t), tsE = NaN; else, tsE = seg_t(idxE+1) - t0; end
-
-    if final > r(edges(i))
-        os = (max(seg_y) - final) / stepSize * 100;
-        dir = 'rising (0.10 to 0.25 m)';
+    % Overshoot and peak
+    if isUp(i)
+        peak(i)   = max(seg_y);
+        os_pct(i) = max(peak(i) - final, 0) / stepSize * 100;
+        dir = 'rising  (0.10 to 0.25 m)';
     else
-        os = (final - min(seg_y)) / stepSize * 100;
+        peak(i)   = min(seg_y);
+        os_pct(i) = max(final - peak(i), 0) / stepSize * 100;
         dir = 'falling (0.25 to 0.10 m)';
     end
-    fprintf('Edge %d, %s: OS = %.2f %%, ts(2%%) = %.3f s, ts(3e band) = %.3f s\n', i, dir, os, ts, tsE);
+
+    % Steady-state error: mean error over the last 2 s of the segment
+    tail   = seg_t >= seg_t(end) - 2;
+    sse(i) = mean(final - seg_y(tail));
+
+    fprintf('Edge %d, %s: OS = %.2f %%, peak = %.4f m, ts(2%%) = %.3f s, SS error = %.2e m\n', ...
+            i, dir, os_pct(i), peak(i), ts(i), sse(i));
 end
+
+%% Summary against 3(c) specs
+fprintf('\nWorst-case OS: %.2f %% (spec < %d %%)\n', max(os_pct), os_max);
+fprintf('Worst-case ts: %.3f s (spec <= %d s)\n', max(ts, [], 'omitnan'), ts_max);
+fprintf('Worst-case |SS error|: %.2e m\n', max(abs(sse)));
+fprintf('Edges that never settled: %d\n', sum(isnan(ts)));

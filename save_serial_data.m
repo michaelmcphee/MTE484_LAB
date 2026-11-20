@@ -20,8 +20,5 @@ while toc < duration
     fprintf("%d, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f\n", values);
 end
 
-% Stop the motor path cleanly by closing the port
-clear s;
-
 writematrix(data, filename);
 fprintf("Done. Saved %d samples to:\n%s\n", size(data,1), fullfile(pwd, filename));
