@@ -58,8 +58,56 @@ static float readBallPosition() {
   return M_Y * filteredRaw + OFFSET_Y;
 }
 
-// One step of D2(z), third order. Returns the saturated gear angle reference.
-// The unsaturated value is fed back in the recursion and logged.
+// Ramp-until-free ball anti-stiction. Call exactly once per control tick.
+// Returns an offset (rad) to add to theta_ref. Negative moves the ball up.
+static float antiStictionOffset(float y, double e) {
+  enum { IDLE, RAMP, COOL };
+  static int   state = IDLE;
+  static float as = 0.0f;
+  static float anchor = 0.0f;
+  static int   cool = 0;
+  static float yold[AS_SLOW_TICKS];
+  static int   yi = 0;
+  static bool  primed = false;
+
+  if (!primed) {
+    for (int i = 0; i < AS_SLOW_TICKS; i++) yold[i] = y;
+    primed = true;
+  }
+  bool slow = fabsf(y - yold[yi]) < AS_SLOW;   // yold[yi] is the sample from 200 ms ago
+  yold[yi] = y;
+  yi = (yi + 1) % AS_SLOW_TICKS;
+
+  float ae = fabsf((float)e);
+
+  switch (state) {
+    case IDLE:
+      as = 0.0f;
+      if (ae > AS_TRIGGER && slow) {
+        state = RAMP;
+        anchor = y;
+      }
+      break;
+    case RAMP:
+      as += ((e > 0.0) ? -1.0f : 1.0f) * AS_RATE * T_S;
+      as = saturate(as, AS_MAX);
+      if (fabsf(y - anchor) > AS_MOVE || ae < AS_RELEASE) {
+        as = 0.0f;
+        state = COOL;
+        cool = AS_COOL_TICKS;
+      }
+      break;
+    case COOL:
+      as = 0.0f;
+      if (--cool <= 0) state = IDLE;
+      break;
+  }
+  return as;
+}
+
+// One step of D2(z), third order, plus ramp anti-stiction.
+// Returns the saturated gear angle reference.
+// theta_ref_unsat includes the anti-stiction offset, before the saturator.
 static float runOuterController(float y_ref, float y, float &theta_ref_unsat) {
   static double e1 = 0.0, e2 = 0.0, e3 = 0.0;   // e[k-1], e[k-2], e[k-3]
   static double u1 = 0.0, u2 = 0.0, u3 = 0.0;   // u[k-1], u[k-2], u[k-3]
@@ -69,10 +117,13 @@ static float runOuterController(float y_ref, float y, float &theta_ref_unsat) {
               - m2o * u1 - m1o * u2 - m0o * u3) / m3o;
 
   e3 = e2;  e2 = e1;  e1 = e;
-  u3 = u2;  u2 = u1;  u1 = u;
+  u3 = u2;  u2 = u1;  u1 = u;     // anti-stiction stays out of the recursion
 
-  theta_ref_unsat = (float)u;
-  return saturate((float)u, THETA_REF_LIMIT);
+  float as = antiStictionOffset(y, e);   // called every tick
+
+  float theta_total = (float)u + as;
+  theta_ref_unsat = theta_total;
+  return saturate(theta_total, THETA_REF_LIMIT);
 }
 
 // One step of D1(z). Returns the motor voltage.

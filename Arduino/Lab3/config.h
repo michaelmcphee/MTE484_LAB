@@ -15,11 +15,24 @@ const double OFFSET_THETA =  1.489727438292469f;
 // ---- Ball position: meters = M_Y * reading + OFFSET_Y (Lab 2e) ----
 const double M_Y      =  2.443047606934512e-05f;
 const double OFFSET_Y = -0.016192042846546f;
+
 const float FILTER_ALPHA = 0.25f;
 
 // ---- New Stiction Values (Lab 2d) ----
 const float STICTION_CW  = -0.05f;
 const float STICTION_CCW =  0.40f;
+
+const float T_S = 0.001f;           // control period (s), must match CONTROL_INTERVAL_MS
+
+// ---- Ball anti-stiction: ramp an offset until the ball moves ----
+const float AS_TRIGGER = 0.004f;    // m, start ramping when |error| is above this
+const float AS_RELEASE = 0.0024f;   // m, stop ramping when |error| falls below this
+const float AS_RATE    = 0.30f;     // rad/s, growth rate of the offset
+const float AS_MAX     = 0.45f;     // rad, limit on the offset
+const float AS_MOVE    = 0.002f;    // m, ball counts as freed after moving this far
+const float AS_SLOW    = 0.0015f;   // m, ball must have moved less than this in 200 ms to start a ramp
+const int   AS_COOL_TICKS = 1500;   // ticks (1.5 s) to wait after each nudge
+#define AS_SLOW_TICKS 200           // ticks (200 ms) for the slow check
 
 // ---- Reference (ball position, meters) ----
 const float Y_LOW  = 0.10f;
@@ -34,6 +47,7 @@ const float THETA_REF_LIMIT = 0.7f;   // saturator on theta_ref
 // Forward Euler, T = 0.001 s. Values from MATLAB (format long).
 const double n1i = -3.462970705995644;
 const double n0i =  3.317894430084641;
+
 const double m1i =  1.000000000000000;
 const double m0i = -0.972000000000000;
 

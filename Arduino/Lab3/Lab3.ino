@@ -11,9 +11,9 @@ void setup() {
   geeWhizBegin();
   setMotorVoltage(0.0f);
 
-  // wait for MATLAB to send one byte
-  while (Serial.available() == 0) {}
-  Serial.read();
+  // // wait for MATLAB to send one byte
+  // while (Serial.available() == 0) {}
+  // Serial.read();
 
   set_control_interval_ms(CONTROL_INTERVAL_MS);
 }
