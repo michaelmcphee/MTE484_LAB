@@ -10,7 +10,7 @@ static float saturate(float val, float limit) {
   return val;
 }
 
-// Square wave reference in meters.
+// Square wave reference (m)
 static float getReference() {
   static unsigned long lastSwitch = 0;
   static bool refHigh = false;
@@ -28,7 +28,7 @@ static float getReference() {
   return refHigh ? Y_HIGH : Y_LOW;
 }
 
-// Filtered gear angle in rad.
+// Filtered gear angle (rad)
 static float readGearAngle() {
   static float filteredRaw = 0.0f;
   static bool primed = false;
@@ -43,7 +43,7 @@ static float readGearAngle() {
   return M_THETA * filteredRaw + OFFSET_THETA;
 }
 
-// Filtered ball position in meters.
+// Filtered ball position (m)
 static float readBallPosition() {
   static float filteredRaw = 0.0f;
   static bool primed = false;
@@ -58,56 +58,16 @@ static float readBallPosition() {
   return M_Y * filteredRaw + OFFSET_Y;
 }
 
-// Ramp-until-free ball anti-stiction. Call exactly once per control tick.
-// Returns an offset (rad) to add to theta_ref. Negative moves the ball up.
-static float antiStictionOffset(float y, double e) {
-  enum { IDLE, RAMP, COOL };
-  static int   state = IDLE;
-  static float as = 0.0f;
-  static float anchor = 0.0f;
-  static int   cool = 0;
-  static float yold[AS_SLOW_TICKS];
-  static int   yi = 0;
-  static bool  primed = false;
-
-  if (!primed) {
-    for (int i = 0; i < AS_SLOW_TICKS; i++) yold[i] = y;
-    primed = true;
-  }
-  bool slow = fabsf(y - yold[yi]) < AS_SLOW;   // yold[yi] is the sample from 200 ms ago
-  yold[yi] = y;
-  yi = (yi + 1) % AS_SLOW_TICKS;
-
-  float ae = fabsf((float)e);
-
-  switch (state) {
-    case IDLE:
-      as = 0.0f;
-      if (ae > AS_TRIGGER && slow) {
-        state = RAMP;
-        anchor = y;
-      }
-      break;
-    case RAMP:
-      as += ((e > 0.0) ? -1.0f : 1.0f) * AS_RATE * T_S;
-      as = saturate(as, AS_MAX);
-      if (fabsf(y - anchor) > AS_MOVE || ae < AS_RELEASE) {
-        as = 0.0f;
-        state = COOL;
-        cool = AS_COOL_TICKS;
-      }
-      break;
-    case COOL:
-      as = 0.0f;
-      if (--cool <= 0) state = IDLE;
-      break;
-  }
-  return as;
+// Constant beam angle offset toward the setpoint, off inside the band
+static float stictionOffset(float y_ref, double e) {
+  float band = (y_ref < 0.175f) ? 0.004f : 0.007f;   // m
+  if (fabs(e) <= band) return 0.0f;
+  return (e > 0.0) ? -STICTION_BEAM : STICTION_BEAM;
 }
 
-// One step of D2(z), third order, plus ramp anti-stiction.
+// Outer controller D2(z) plus ball stiction offset.
 // Returns the saturated gear angle reference.
-// theta_ref_unsat includes the anti-stiction offset, before the saturator.
+// theta_ref_unsat is the value before the saturator, offset included.
 static float runOuterController(float y_ref, float y, float &theta_ref_unsat) {
   static double e1 = 0.0, e2 = 0.0, e3 = 0.0;   // e[k-1], e[k-2], e[k-3]
   static double u1 = 0.0, u2 = 0.0, u3 = 0.0;   // u[k-1], u[k-2], u[k-3]
@@ -117,21 +77,21 @@ static float runOuterController(float y_ref, float y, float &theta_ref_unsat) {
               - m2o * u1 - m1o * u2 - m0o * u3) / m3o;
 
   e3 = e2;  e2 = e1;  e1 = e;
-  u3 = u2;  u2 = u1;  u1 = u;     // anti-stiction stays out of the recursion
+  u3 = u2;  u2 = u1;  u1 = u;     // offset is not stored here
 
-  float as = antiStictionOffset(y, e);   // called every tick
+  float as = stictionOffset(y_ref, e);
 
   float theta_total = (float)u + as;
   theta_ref_unsat = theta_total;
   return saturate(theta_total, THETA_REF_LIMIT);
 }
 
-// One step of D1(z). Returns the motor voltage.
+// Inner controller D1(z), returns motor voltage
 static float runController(float theta_ref, float theta) {
   static float e_prev = 0.0f;
   static float u_prev = 0.0f;
 
-  // Safety: 0 V outside +/- THETA_LIMIT
+  // Motor off outside +/- THETA_LIMIT
   if (theta > THETA_LIMIT || theta < -THETA_LIMIT) {
     return 0.0f;
   }
@@ -142,7 +102,7 @@ static float runController(float theta_ref, float theta) {
   e_prev = e;
   u_prev = u;
 
-  // Stiction is added after, so it stays out of the recursion.
+  // Add stiction offset (not fed back into the controller)
   float V = u;
   if (u > 0.0f) V += STICTION_CW;
   if (u < 0.0f) V -= STICTION_CCW;

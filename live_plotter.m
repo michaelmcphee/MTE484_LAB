@@ -3,7 +3,7 @@ clear; clc; close all;
 %% Settings
 port       = "COM3";
 baudrate   = 115200;
-bufferSec  = 45;      % seconds of history shown in the live plot (rolling window)
+bufferSec  = 45;      % seconds of history shown in the live plot 
 refreshSec = 0.05;    % plot refresh interval (s)
 sampleRate = 200;     % expected samples per second (5 ms log interval), used to size the buffer
 

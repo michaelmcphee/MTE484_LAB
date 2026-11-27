@@ -2,7 +2,7 @@ clear;
 port = "COM3";
 baudrate = 115200;
 filename = "data/serial_data_system.csv";
-duration = 90;  % Recording time in seconds (3 periods of the 30 s square wave)
+duration = 90;  % recording time (s), 3 periods
 
 s = serialport(port, baudrate);
 flush(s);

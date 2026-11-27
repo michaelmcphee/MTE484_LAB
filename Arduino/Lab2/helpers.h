@@ -10,7 +10,7 @@ static float saturate(float val, float limit) {
   return val;
 }
 
-// Square wave reference in rad.
+// Square wave reference (rad)
 static float getReference() {
   static unsigned long lastSwitch = 0;
   static bool refHigh = false;
@@ -28,7 +28,7 @@ static float getReference() {
   return refHigh ? REF_HIGH : REF_LOW;
 }
 
-// Filtered gear angle in rad.
+// Filtered gear angle (rad)
 static float readGearAngle() {
   static float filteredRaw = 0.0f;
   static bool primed = false;
@@ -43,7 +43,7 @@ static float readGearAngle() {
   return M_THETA * filteredRaw + OFFSET_THETA;
 }
 
-// Filtered ball position in metres.
+// Filtered ball position (m)
 static float readBallPosition() {
   static float filteredRaw = 0.0f;
   static bool primed = false;
@@ -59,12 +59,12 @@ static float readBallPosition() {
 }
 
 
-// One step of D(z). Returns the motor voltage.
+// Controller D(z), returns motor voltage
 static float runController(float theta_ref, float theta) {
   static float e_prev = 0.0f;
   static float u_prev = 0.0f;
 
-    // Safety: 0 V outside +/- THETA_LIMIT
+  // Motor off outside +/- THETA_LIMIT
   if (theta > THETA_LIMIT || theta < -THETA_LIMIT) {
     return 0.0f;
   }
@@ -75,7 +75,7 @@ static float runController(float theta_ref, float theta) {
   e_prev = e;
   u_prev = u;
 
-  // Stiction is added after, so it stays out of the recursion.
+  // Add stiction offset (not fed back into the controller)
   float V = u;
   if (u > 0.0f) V += STICTION_CW;
   if (u < 0.0f) V -= STICTION_CCW;

@@ -23,11 +23,11 @@ m0i = f0i*T - f1i;
 n1i = g1i;
 n0i = g0i*T - g1i;
 
-%% Outer loop controller C2(s) (Lab 3(c), pole placement with integrator)
+%% Outer loop controller C2(s): pole placement with integrator (Lab 3(c))
 % C2(s) = (g3o s^3 + g2o s^2 + g1o s + g0o) / (f3o s^3 + f2o s^2 + f1o s + f0o)
 %       = (g2o s^2 + g1o s + g0o) / ( s (s^2 + f2o s + f1o) )
-% Plant seen by the outer loop (theta = theta_ref assumed): K/s^2
-% Augmented with the integrator: K/s^3
+% Outer loop plant, assuming theta = theta_ref: K/s^2
+% With the integrator: K/s^3
 K = k2*k3;
 sigo = 0.4;  zetao = 0.95;
 wno  = sigo/zetao;
@@ -42,7 +42,7 @@ g2o = pdeso(4)/K;
 g1o = pdeso(5)/K;
 g0o = pdeso(6)/K;
 
-% Outer D2(z), forward Euler (s = (z-1)/T), both polynomials multiplied by T^3
+% Outer D2(z), forward Euler (s = (z-1)/T), num and den scaled by T^3
 m3o = f3o;
 m2o = -3*f3o + f2o*T;
 m1o =  3*f3o - 2*f2o*T + f1o*T^2;
@@ -53,7 +53,7 @@ n2o = -3*g3o + g2o*T;
 n1o =  3*g3o - 2*g2o*T + g1o*T^2;
 n0o = -g3o + g2o*T - g1o*T^2 + g0o*T^3;
 
-% Print full-precision values for config.h
+% Full precision values for config.h
 format long
 disp('Inner D1(z):');  disp([n1i n0i m1i m0i]);
 disp('Outer D2(z):');  disp([n3o n2o n1o n0o; m3o m2o m1o m0o]);
@@ -93,7 +93,7 @@ t  = y.Time;
 yd = y.Data;
 r  = interp1(y_ref.Time, y_ref.Data, t, 'previous');
 edges = find(abs(diff(r)) > 0.5*stepSize);
-edges = edges(t(edges+1) < t(end) - 1);   % drop edges at the end of the sim
+edges = edges(t(edges+1) < t(end) - 1);   % ignore edges in the last second
 nEdge = numel(edges);
 
 os_pct = nan(nEdge,1);  ts = nan(nEdge,1);  peak = nan(nEdge,1);

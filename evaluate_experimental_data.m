@@ -1,5 +1,5 @@
 %% Plot Lab 3 controller data
-data = readmatrix("data/serial_data_system.csv");   % change to your file
+data = readmatrix("data/Lab3/parte/serial_data_system.csv");   % change to your file
 
 % Columns: time (us), y_ref, y, theta_ref_unsat, theta_ref_sat, theta, V
 t_us          = data(:,1);
@@ -42,7 +42,7 @@ xlabel('Time (s)');
 ylabel('Ball Position (m)');
 legend([h1 h2 h3 h4 h5], 'y_{ref}', 'y', '3(c) \pm2% band', '3(e) band', ...
        '45% overshoot limit', 'Location', 'best');
-title('Lab 3(d): Experimental Ball Position');
+title('Lab 3(e): Experimental Ball Position with Stiction Compensation');
 grid on;
 
 %% Figure 2: gear angle signals and control effort

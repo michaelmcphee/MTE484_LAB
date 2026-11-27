@@ -11,7 +11,7 @@ void setup() {
   geeWhizBegin();
   setMotorVoltage(0.0f);
 
-  // // wait for MATLAB to send one byte
+  // // wait for MATLAB start byte
   // while (Serial.available() == 0) {}
   // Serial.read();
 
@@ -19,20 +19,20 @@ void setup() {
 }
 
 void loop() {
-  // all work happens in the control ISR
+  // control runs in the timer interrupt
 }
 
 void interval_control_code(void) {
 
-  float y_ref = getReference();          // ball position reference (m)
+  float y_ref = getReference();          // ball reference (m)
   float theta = readGearAngle();         // gear angle (rad)
   float y     = readBallPosition();      // ball position (m)
 
-  // Outer loop: ball position error -> gear angle reference
+  // Outer loop: ball position to gear angle reference
   float theta_ref_unsat;
   float theta_ref_sat = runOuterController(y_ref, y, theta_ref_unsat);
 
-  // Inner loop: gear angle reference -> motor voltage
+  // Inner loop: gear angle to motor voltage
   float V = runController(theta_ref_sat, theta);
 
   setMotorVoltage(V);

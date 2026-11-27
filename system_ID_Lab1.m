@@ -1,17 +1,15 @@
 %% Lab 1(e) - System ID from step response data
-% Finds every reference transition in the CSV, measures %OS and Tp for
-% each step (in both directions), then computes zeta, wn, tau and K1
-% per step and averages across all steps.
+% Measures %OS and Tp for each step, then finds zeta, wn, tau and K1.
+% Results are averaged over all steps.
 
 clear; clc;
 
-% ---------------- User inputs ---------------
+% Inputs
 filename = "data/serial_data_system_kp15_alpha25.csv";
 Kp = -15;              % proportional gain used for this run
-peak_search_frac = 0.6;% only search this fraction of each half-period for
-                        % the peak, to avoid catching noise near the tail
+peak_search_frac = 0.6;% fraction of each half period searched for the peak
 
-% ---------------- Load data ----------------
+% Load data
 data = readmatrix(filename);
 
 if size(data,2) == 4
@@ -31,12 +29,11 @@ else
     error("Unexpected number of columns in %s", filename);
 end
 
-%% ---------------- Find step transitions ----------------
+%% Find step transitions
 trans = find(diff(theta_ref) ~= 0) + 1;   % index of first sample after each step
-trans = [1; trans; length(theta_ref)+1];  % bound the segments
+trans = [1; trans; length(theta_ref)+1];  % segment boundaries
 
-nSteps = length(trans) - 2;   % first "segment" (1:trans(2)-1) has no known
-                               % pre-step steady value, so it is skipped
+nSteps = length(trans) - 2;   % first segment is skipped (no value before the step)
 results = table('Size', [nSteps 8], ...
     'VariableTypes', {'double','double','double','double','double','double','double','double'}, ...
     'VariableNames', {'step','direction','Tp_s','OS_pct','zeta','wn_rad_s','tau_s','K1'});
@@ -52,21 +49,21 @@ for i = 2:length(trans)-1
     seg_t     = t(segStart:segEnd);
     seg_theta = theta(segStart:segEnd);
 
-    initVal = theta(segStart-1);                  % value just before the step
+    initVal = theta(segStart-1);                  % value before the step
     stepDir = sign(theta_ref(segStart) - initVal); % +1 or -1
     if stepDir == 0
         continue
     end
 
-    % steady-state value: mean of the last 15% of the segment
+    % steady state: mean of the last 15%
     tailN = max(1, round(0.15 * length(seg_theta)));
     finalVal = mean(seg_theta(end-tailN+1:end));
 
     if abs(finalVal - initVal) < 1e-4
-        continue   % degenerate step, skip
+        continue   % skip if there is no step
     end
 
-    % restrict peak search to avoid picking up noise near the tail
+    % search for the peak
     searchN = max(1, round(peak_search_frac * length(seg_theta)));
     searchSeg = seg_theta(1:searchN);
 
@@ -80,10 +77,10 @@ for i = 2:length(trans)-1
     OS_pct = (peakVal - finalVal) / (finalVal - initVal) * 100;
 
     if OS_pct <= 0 || Tp <= 0
-        continue   % no real overshoot detected for this step, skip
+        continue   % skip steps with no overshoot
     end
 
-    % ---- zeta, wn, tau, K1 from measured OS and Tp ----
+    % zeta, wn, tau and K1 from OS and Tp
     osFrac = OS_pct / 100;
     zeta = -log(osFrac) / sqrt(pi^2 + log(osFrac)^2);
     wn   = pi / (Tp * sqrt(1 - zeta^2));
@@ -103,7 +100,7 @@ ylabel("Gear angle (rad)");
 title("Kp = -15 Step Response with Marked Peaks");
 legend('Location', 'best');
 
-%% ---------------- Summary ----------------
+%% Summary
 disp(results);
 
 tau_mean = mean(results.tau_s);
